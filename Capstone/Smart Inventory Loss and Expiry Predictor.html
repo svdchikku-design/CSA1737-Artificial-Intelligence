@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Inventory Loss and Expiry Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4ff;--card:#fff;--tx:#1b1740;--mut:#5d5a82;--bd:#e3dffa;--a1:#7c3aed;--a2:#0891b2;--a3:#ea580c;--a4:#db2777;--a5:#16a34a;--sh:0 8px 30px rgba(124,58,237,.12);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0a24;--card:#171436;--tx:#f1efff;--mut:#a9a5d6;--bd:#2b2760;--a1:#a78bfa;--a2:#22d3ee;--a3:#fb923c;--a4:#f472b6;--a5:#4ade80;--sh:0 8px 30px rgba(0,0,0,.4);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0c0a24;--card:#171436;--tx:#f1efff;--mut:#a9a5d6;--bd:#2b2760;--a1:#a78bfa;--a2:#22d3ee;--a3:#fb923c;--a4:#f472b6;--a5:#4ade80;--sh:0 8px 30px rgba(0,0,0,.4);color-scheme:dark}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:Outfit,system-ui,sans-serif;line-height:1.55;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:60}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;display:flex;gap:6px;align-items:center;padding:10px 14px;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);overflow-x:auto;white-space:nowrap}
+nav b{background:linear-gradient(90deg,var(--a1),var(--a4));-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:8px}
+nav a{color:var(--mut);text-decoration:none;font-size:.85rem;padding:5px 11px;border-radius:99px}nav a:hover{background:var(--bd);color:var(--tx)}
+nav button{margin-left:auto;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:4px 10px;cursor:pointer}
+.hero{position:relative;text-align:center;padding:70px 18px 80px;overflow:hidden;background:linear-gradient(135deg,#4c1d95,#7c3aed 40%,#db2777 75%,#f97316);color:#fff}
+.hero i{position:absolute;border-radius:50%;filter:blur(40px);opacity:.5;animation:fl 9s ease-in-out infinite}
+.hero i:nth-child(1){width:260px;height:260px;background:#22d3ee;left:-60px;top:-40px}.hero i:nth-child(2){width:220px;height:220px;background:#facc15;right:-40px;bottom:-30px;animation-delay:-4s}
+@keyframes fl{50%{transform:translate(40px,30px) scale(1.15)}}
+.hero>*{position:relative}.tag{display:inline-block;background:rgba(255,255,255,.2);padding:5px 14px;border-radius:99px;font-size:.8rem;backdrop-filter:blur(6px)}
+h1{font-size:clamp(2rem,6vw,3.8rem);line-height:1.1;margin:16px auto;font-weight:800;max-width:900px}.hero p{max-width:640px;margin:0 auto 22px;font-size:1.1rem;opacity:.95}
+.btn{display:inline-block;background:#fff;color:#4c1d95;font-weight:600;padding:11px 22px;border-radius:99px;text-decoration:none;margin:4px;border:0;cursor:pointer;font:600 1rem Outfit,system-ui}
+.btn.g{background:rgba(255,255,255,.18);color:#fff}
+.team{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:34px}
+.team div{background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border-radius:16px;padding:12px 18px;min-width:200px}.team small{display:block;opacity:.85}
+main{max-width:1050px;margin:auto;padding:0 16px}section{padding:58px 0 8px}
+.k{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--a4)}
+h2{font-size:clamp(1.6rem,4vw,2.4rem);margin:4px 0 6px;font-weight:800}.sub{color:var(--mut);margin:0 0 24px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:20px;box-shadow:var(--sh)}
+.card h3{margin:0 0 8px}.card ul{margin:0;padding-left:18px;color:var(--mut)}.card li{margin:4px 0}
+.big{font-size:2.8rem;font-weight:800;line-height:1}.c1{border-top:5px solid var(--a1)}.c2{border-top:5px solid var(--a2)}.c3{border-top:5px solid var(--a3)}.c4{border-top:5px solid var(--a4)}.c5{border-top:5px solid var(--a5)}
+.t1{color:var(--a1)}.t2{color:var(--a2)}.t3{color:var(--a3)}.t4{color:var(--a4)}.t5{color:var(--a5)}
+.tw{overflow-x:auto;border-radius:16px;border:1px solid var(--bd)}table{border-collapse:collapse;width:100%;background:var(--card);font-size:.92rem}
+th{background:linear-gradient(90deg,var(--a1),var(--a4));color:#fff;text-align:left}th,td{padding:11px 14px;border-bottom:1px solid var(--bd)}
+.steps{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.steps span{flex:1 1 140px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;text-align:center;font-weight:600}
+.steps em{display:grid;place-items:center;width:30px;height:30px;margin:0 auto 6px;border-radius:50%;color:#fff;font-style:normal;background:linear-gradient(135deg,var(--a1),var(--a4))}
+.flow{display:grid;gap:12px;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:stretch}
+.flow .n{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px;font-size:.88rem;color:var(--mut)}.flow .n b{display:block;color:var(--tx);margin-bottom:4px}
+.flow .ar{align-self:center;font-size:1.6rem;color:var(--a4)}.mods{display:grid;gap:8px}.mods .n{border-left:5px solid}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:2px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 18px;border-radius:99px;font:600 .95rem Outfit,system-ui;cursor:pointer}
+.tab.on{color:#fff;border-color:transparent;background:var(--c)}
+.pane{display:none;gap:16px;grid-template-columns:1fr 1fr}.pane.on{display:grid}
+.pill{display:inline-block;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);padding:3px 11px;border-radius:99px;font-size:.82rem;margin:2px 3px 2px 0;font-weight:600}
+.lab{display:block;font-size:.85rem;color:var(--mut);margin:10px 0 3px}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+input[type=checkbox]{width:auto;margin-right:6px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.go{width:100%;margin-top:16px;padding:13px;border:0;border-radius:12px;color:#fff;font:700 1rem Outfit,system-ui;cursor:pointer;background:linear-gradient(90deg,var(--a1),var(--a4));transition:.2s}.go:hover{transform:translateY(-2px)}
+.out{margin-top:14px;padding:14px;border-radius:14px;background:var(--bg);border:1px dashed var(--bd);min-height:70px}
+.res{font-size:1.9rem;font-weight:800}.badge{display:inline-block;padding:4px 14px;border-radius:99px;color:#fff;font-weight:700}
+.hi{background:#dc2626}.md{background:#d97706}.lo{background:#16a34a}
+.bar{height:12px;border-radius:99px;background:var(--bd);overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;border-radius:99px;transition:width .6s}
+svg text{fill:var(--mut);font:11px Outfit,system-ui}
+.eng{background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 18%,var(--card)),color-mix(in srgb,var(--a3) 14%,var(--card)))}
+.eng .grid>div{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--bd)}
+.chips span{display:inline-block;margin:4px;padding:8px 16px;border-radius:99px;color:#fff;font-weight:600;background:var(--c)}
+.rv{opacity:0;transform:translateY(24px);transition:.7s}.rv.in,.nojs .rv{opacity:1;transform:none}
+footer{text-align:center;color:var(--mut);padding:50px 16px 40px;font-size:.9rem}
+@media(max-width:820px){.pane.on{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.flow .ar{transform:rotate(90deg);text-align:center}}
+</style></head>
+<body class="nojs">
+<nav><b>SIEP</b><a href="#problem">Problem</a><a href="#scope">Scope</a><a href="#lit">Literature</a><a href="#data">Data</a><a href="#arch">Architecture</a><a href="#lab">Live Predictor</a><a href="#eval">Evaluation</a><a href="#stack">Tech</a><a href="#impact">Impact</a><button id="th" aria-label="Toggle theme">🌓</button></nav>
+
+<header class="hero"><i></i><i></i>
+<span class="tag">Capstone Project · Artificial Intelligence · SIMATS Engineering</span>
+<h1>Smart Inventory Loss and Expiry Predictor</h1>
+<p>AI-powered demand, expiry and loss intelligence for retail.</p>
+<a class="btn" href="#lab">Try the live predictor ✨</a><a class="btn g" href="#problem">Explore the project</a>
+<div class="team">
+<div><b>Donapati Saai Vardhan</b><small>Reg. No: 192525205 · Module 1</small></div>
+<div><b>Dharshan Vishal S</b><small>Reg. No: 192321174 · Module 2</small></div>
+<div><b>Saravanan T</b><small>Reg. No: 1925260349 · Module 3</small></div></div>
+<p style="margin-top:22px;font-size:.95rem">CSA1737 – Artificial Intelligence · Guided by <b>Dr. K. Rajagopal</b></p>
+</header>
+
+<main>
+<section id="problem" class="rv"><div class="k">Problem &amp; Motivation</div><h2>Why retailers need a smarter way to manage stock</h2><p class="sub">Roughly one third of food produced is lost or wasted worldwide (FAO).</p>
+<div class="grid">
+<div class="card c1"><div class="big t1">~1/3</div><h3>Food waste</h3><p style="color:var(--mut)">Retail faces the same issue at a smaller scale: overstock expires, understock loses sales.</p></div>
+<div class="card c3"><div class="big t3">Expiry</div><h3>Spoiled stock</h3><p style="color:var(--mut)">Perishable batches expire before they sell, causing direct money loss.</p></div>
+<div class="card c4"><div class="big t4">Loss</div><h3>Hidden shrinkage</h3><p style="color:var(--mut)">Theft, damage and counting errors go unnoticed until it is too late.</p></div></div>
+<div class="card c2" style="margin-top:16px"><b class="t2">The need:</b> one intelligent system that predicts demand, expiry risk and stock loss together.</div></section>
+
+<section id="scope" class="rv"><div class="k">Objectives &amp; Scope</div><h2>What the system will and will not do</h2><p class="sub">Clear boundaries for the project.</p>
+<div class="grid">
+<div class="card c1"><h3>🎯 Objectives</h3><ul><li>Forecast product demand accurately</li><li>Predict which batches will expire unsold</li><li>Detect unexplained inventory loss</li><li>Recommend actions: reorder, discount, donate, investigate</li><li>Reduce waste, stock-outs and financial loss</li></ul></div>
+<div class="card c5"><h3>✅ In scope</h3><ul><li>Retail / grocery stores with batch-wise stock</li><li>Three AI modules plus a simple dashboard</li><li>Evaluation on historical and simulated data</li></ul></div>
+<div class="card c4"><h3>🚫 Out of scope</h3><ul><li>Live hardware integration (sensors, RFID)</li><li>Supplier negotiation and pricing strategy</li><li>Real-time billing system replacement</li></ul></div></div></section>
+
+<section id="lit" class="rv"><div class="k">Literature Survey</div><h2>Existing work solves parts of the problem, not all of it</h2><p class="sub">Each method handles one task; this project combines all three.</p>
+<div class="tw"><table><tr><th>Work</th><th>Technique</th><th>Limitation for our problem</th></tr>
+<tr><td>Hyndman &amp; Athanasopoulos, <i>Forecasting: Principles and Practice</i></td><td>ARIMA, ETS</td><td>Forecasts demand only; no expiry or loss link</td></tr>
+<tr><td>Taylor &amp; Letham, Prophet</td><td>Seasonal time series</td><td>Demand only; ignores batch expiry</td></tr>
+<tr><td>Chen &amp; Guestrin, XGBoost</td><td>Gradient boosting</td><td>General-purpose; not tailored to inventory</td></tr>
+<tr><td>Liu, Ting &amp; Zhou, Isolation Forest</td><td>Anomaly detection</td><td>Generic; no stock-count context</td></tr></table></div>
+<div class="card c1" style="margin-top:16px"><b class="t1">Our contribution:</b> a single pipeline where demand forecasts drive expiry risk, and loss detection keeps stock data trustworthy.</div></section>
+
+<section id="data" class="rv"><div class="k">Dataset &amp; Preprocessing</div><h2>Data used by all three modules</h2><p class="sub">Public sales data plus synthetic batch and expiry records.</p>
+<div class="grid">
+<div class="card c2"><h3>📦 Data source</h3><ul><li>Public retail sales dataset (e.g., Kaggle store-item demand)</li><li>Synthetic batch, expiry and stock-count records that mimic real stores</li><li>Daily sales history across products and stores</li></ul></div>
+<div class="card c3"><h3>🔑 Key features</h3><ul><li>Date, product, category, store</li><li>Units sold, price, promotion flag</li><li>Batch ID, manufacture and expiry date</li><li>System stock vs physical count</li></ul></div></div>
+<div class="steps"><span><em>1</em>Collect</span><span><em>2</em>Clean</span><span><em>3</em>Encode</span><span><em>4</em>Feature engineering</span><span><em>5</em>Train / test split</span></div></section>
+
+<section id="arch" class="rv"><div class="k">System Architecture</div><h2>End-to-end flow from raw data to decisions</h2><p class="sub">Demand forecast feeds expiry risk; loss data corrects the stock counts used by both.</p>
+<div class="flow">
+<div class="n" style="border-top:5px solid var(--a2)"><b>🗄 Data Sources</b>Sales (POS) · Stock &amp; batches · Expiry dates · Supplier deliveries · Storage conditions</div><div class="ar">➜</div>
+<div class="n" style="border-top:5px solid var(--a1)"><b>🧹 Preprocessing</b>Cleaning · Missing values · Encoding · Feature engineering · Train / test split</div><div class="ar">➜</div>
+<div class="mods"><div class="n" style="border-color:var(--a1)"><b>Module 1: Demand Forecasting</b>Saai Vardhan</div><div class="n" style="border-color:var(--a3)"><b>Module 2: Expiry Risk</b>Dharshan Vishal</div><div class="n" style="border-color:var(--a4)"><b>Module 3: Loss Detection</b>Saravanan</div></div><div class="ar">➜</div>
+<div class="n" style="border-top:5px solid var(--a5)"><b>🧠 Decision Engine &amp; Dashboard</b>Reorder quantity · Expiry alerts, discounts · Loss alerts · Reports (Streamlit)</div></div></section>
+
+<section id="lab" class="rv"><div class="k">Modules · Live Predictor</div><h2>Explore each module and try it yourself</h2><p class="sub">Every module is explained and has a working predictor. Run Module 1, then send its forecast to Module 2.</p>
+<div class="tabs"><button class="tab on" data-p="0" style="--c:var(--a1)">1 · Demand Forecasting</button><button class="tab" data-p="1" style="--c:var(--a3)">2 · Expiry Risk</button><button class="tab" data-p="2" style="--c:var(--a4)">3 · Loss Detection</button></div>
+
+<div class="pane on card" style="--c:var(--a1)"><div>
+<h3 class="t1">Predicts how much will sell</h3><p style="color:var(--mut)">Forecasts daily/weekly sales for the next 7 to 30 days and estimates the right reorder quantity.</p>
+<b>Inputs</b><br><span class="pill">Past daily sales</span><span class="pill">Price &amp; promotions</span><span class="pill">Day of week, holidays</span><span class="pill">Current stock</span><br>
+<b>Outcomes</b><br><span class="pill">Forecast units</span><span class="pill">Reorder quantity</span><span class="pill">MAE · RMSE · MAPE</span><br>
+<b>Techniques</b><br><span class="pill">ARIMA</span><span class="pill">Prophet</span><span class="pill">Random Forest</span><span class="pill">XGBoost</span><span class="pill">LSTM</span><p style="color:var(--mut);font-size:.9rem">Best model chosen by lowest error.</p></div>
+<div><div class="row"><div><label class="lab">Avg daily sales (units)</label><input id="d1" type="number" value="40"></div><div><label class="lab">Current stock</label><input id="d2" type="number" value="150"></div></div>
+<div class="row"><div><label class="lab">Horizon</label><select id="d3"><option>7</option><option selected>14</option><option>30</option></select></div><div><label class="lab">Starts on</label><select id="d4"><option value="0">Sunday</option><option value="1" selected>Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div></div>
+<div class="row"><div><label class="lab">Season</label><select id="d5"><option value="1">Normal</option><option value="1.35">Festival</option><option value="1.2">Holiday</option><option value="0.95">Monsoon</option></select></div><div><label class="lab">Discount %</label><input id="d6" type="number" value="0" min="0" max="60"></div></div>
+<label class="lab"><input id="d7" type="checkbox">Promotion running</label>
+<button class="go" id="g1">Forecast demand ⚡</button><div class="out" id="o1">Press the button to forecast.</div></div></div>
+
+<div class="pane card" style="--c:var(--a3)"><div>
+<h3 style="color:var(--a3)">Finds what will expire unsold</h3><p style="color:var(--mut)">Compares days left to expiry with forecasted sales speed. If stock will not clear in time, the batch is high risk.</p>
+<b>Inputs</b><br><span class="pill">Expiry &amp; days left</span><span class="pill">Batch quantity</span><span class="pill">Temperature &amp; humidity</span><span class="pill">Module 1 forecast</span><br>
+<b>Outcomes</b><br><span class="pill">High / Medium / Low</span><span class="pill">Probability unsold</span><span class="pill">Expected waste</span><span class="pill">Action</span><br>
+<b>Techniques</b><br><span class="pill">Decision Tree</span><span class="pill">Random Forest</span><span class="pill">Logistic Regression</span><span class="pill">FEFO rule</span><p style="color:var(--mut);font-size:.9rem">Measured by accuracy, precision, recall, F1.</p></div>
+<div><div class="row"><div><label class="lab">Days left to expiry</label><input id="e1" type="number" value="6"></div><div><label class="lab">Batch quantity</label><input id="e2" type="number" value="200"></div></div>
+<div class="row"><div><label class="lab">Forecast sales/day</label><input id="e3" type="number" value="25"></div><div><label class="lab">Storage temp (°C)</label><input id="e4" type="number" value="8"></div></div>
+<label class="lab">Category</label><select id="e5"><option value="1.4">Dairy</option><option value="1.2">Bakery</option><option value="1.3">Fresh produce</option><option value="0.4">Packaged food</option></select>
+<button class="go" id="g2" style="background:linear-gradient(90deg,var(--a3),var(--a4))">Predict expiry risk ⏳</button><div class="out" id="o2">Press the button to classify the batch.</div></div></div>
+
+<div class="pane card" style="--c:var(--a4)"><div>
+<h3 class="t4">Detects unexplained stock loss</h3><p style="color:var(--mut)">Expected stock minus actual stock should be near zero. Large unexplained gaps are anomalies to investigate.</p>
+<b>Inputs</b><br><span class="pill">System vs physical count</span><span class="pill">Returns &amp; damaged goods</span><span class="pill">Past shrinkage</span><br>
+<b>Outcomes</b><br><span class="pill">Loss %</span><span class="pill">Normal / suspicious</span><span class="pill">Probable cause</span><br>
+<b>Techniques</b><br><span class="pill">Isolation Forest</span><span class="pill">One-Class SVM</span><span class="pill">Z-score</span><span class="pill">K-Means</span><p style="color:var(--mut);font-size:.9rem">Measured by precision, recall, false-alarm rate.</p></div>
+<div><div class="row"><div><label class="lab">System stock</label><input id="l1" type="number" value="500"></div><div><label class="lab">Physical count</label><input id="l2" type="number" value="455"></div></div>
+<div class="row"><div><label class="lab">Damaged (logged)</label><input id="l3" type="number" value="5"></div><div><label class="lab">Typical loss % (avg)</label><input id="l4" type="number" value="1.5" step="0.1"></div></div>
+<label class="lab">Typical loss spread % (std dev)</label><input id="l5" type="number" value="0.8" step="0.1">
+<button class="go" id="g3" style="background:linear-gradient(90deg,var(--a4),var(--a1))">Detect loss 🔍</button><div class="out" id="o3">Press the button to check for anomalies.</div></div></div>
+
+<div class="card eng" style="margin-top:18px"><h3>🧠 Decision Engine &amp; Dashboard</h3><p class="sub" style="margin-bottom:12px">Combines the three modules into actions for the store manager.</p>
+<div class="grid"><div><b class="t1">Reorder</b><div id="x1" style="color:var(--mut)">Run Module 1</div></div><div><b class="t3">Expiry action</b><div id="x2" style="color:var(--mut)">Run Module 2</div></div><div><b class="t4">Loss alert</b><div id="x3" style="color:var(--mut)">Run Module 3</div></div></div></div></section>
+
+<section id="eval" class="rv"><div class="k">Evaluation Plan</div><h2>How each module will be measured</h2><p class="sub">Models are compared on a held-out test set; the best-performing model is kept for each module.</p>
+<div class="tw"><table><tr><th>Module</th><th>Metrics</th><th>Success goal</th></tr>
+<tr><td>1. Demand Forecasting</td><td>MAE, RMSE, MAPE</td><td>Lower error than a simple moving-average baseline</td></tr>
+<tr><td>2. Expiry Risk</td><td>Accuracy, precision, recall, F1</td><td>High recall on the High-risk class</td></tr>
+<tr><td>3. Loss Detection</td><td>Precision, recall, false-alarm rate</td><td>Catch real loss with few false alarms</td></tr>
+<tr><td><b>Overall system</b></td><td>Waste reduction %, stock-out reduction %</td><td>Less expired stock and fewer empty shelves</td></tr></table></div></section>
+
+<section id="stack" class="rv"><div class="k">Tools &amp; Technology</div><h2>Everything runs on free, open-source tools</h2><p class="sub">Runs on a normal laptop or Google Colab.</p>
+<div class="chips"><span style="--c:#7c3aed">Python 3</span><span style="--c:#ea580c">Jupyter / Colab</span><span style="--c:#0891b2">pandas</span><span style="--c:#16a34a">NumPy</span><span style="--c:#db2777">scikit-learn</span><span style="--c:#7c3aed">XGBoost</span><span style="--c:#0891b2">statsmodels</span><span style="--c:#ea580c">Prophet</span><span style="--c:#16a34a">TensorFlow (LSTM)</span><span style="--c:#db2777">Matplotlib</span><span style="--c:#7c3aed">Seaborn</span><span style="--c:#0891b2">Plotly</span><span style="--c:#dc2626">Streamlit</span></div></section>
+
+<section id="impact" class="rv"><div class="k">Business Impact &amp; Future Scope</div><h2>Value delivered today and where it can grow</h2><p class="sub"> </p>
+<div class="grid"><div class="card c5"><h3>💰 Business impact</h3><ul><li>Less expired and wasted stock</li><li>Fewer stock-outs and lost sales</li><li>Better cash flow through smarter reorders</li><li>Early detection of theft and errors</li><li>Data-driven decisions for managers</li></ul></div>
+<div class="card c2"><h3>🚀 Future scope</h3><ul><li>IoT temperature and humidity sensors</li><li>Barcode / RFID for automatic tracking</li><li>Mobile app with push alerts</li><li>Deep learning demand models</li><li>Multi-store cloud deployment</li></ul></div></div></section>
+
+<section id="end" class="rv"><div class="card c1" style="text-align:center"><div class="k">Conclusion</div><h2>One pipeline. Three connected AI modules.</h2>
+<p>Three connected AI modules cover demand, expiry and loss in one pipeline. Forecasts drive expiry decisions; anomaly detection keeps stock data reliable. The system helps stores cut waste, avoid stock-outs and act early.</p></div></section>
+
+<section class="rv"><div class="k">References</div><h2>Sources</h2>
+<div class="card"><ul style="color:var(--mut)"><li>Hyndman, R. J., &amp; Athanasopoulos, G. <i>Forecasting: Principles and Practice.</i> OTexts.</li><li>Taylor, S. J., &amp; Letham, B. Forecasting at Scale. <i>The American Statistician</i>, 72(1).</li><li>Chen, T., &amp; Guestrin, C. XGBoost: A Scalable Tree Boosting System. KDD.</li><li>Liu, F. T., Ting, K. M., &amp; Zhou, Z.-H. Isolation Forest. IEEE ICDM 2008.</li><li>Breiman, L. Random Forests. <i>Machine Learning</i>, 45(1), 5–32.</li><li>Hochreiter, S., &amp; Schmidhuber, J. Long Short-Term Memory. <i>Neural Computation</i>, 9(8).</li><li>FAO. Global food losses and food waste. Food and Agriculture Organization of the United Nations.</li></ul></div></section>
+</main>
+<footer>Capstone · CSA1737 Artificial Intelligence · SIMATS Engineering<br>Donapati Saai Vardhan · Dharshan Vishal S · Saravanan T · Guide: Dr. K. Rajagopal<br><small>The predictor uses simplified rule-based demo logic, not the trained models.</small></footer>
+
+<script>
+const $=i=>document.getElementById(i),n=i=>parseFloat($(i).value)||0;
+document.body.classList.remove('nojs');
+try{const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.08});document.querySelectorAll('.rv').forEach(e=>io.observe(e))}catch(e){document.body.classList.add('nojs')}
+$('th').onclick=()=>{const r=document.documentElement,d=getComputedStyle(r).colorScheme==='dark';r.dataset.theme=d?'light':'dark'};
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('on',i==t.dataset.p))});
+let fc=null;
+const DOW=[1.15,.92,.9,.93,.97,1.1,1.25],DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+$('g1').onclick=()=>{
+ const base=n('d1'),stock=n('d2'),H=+$('d3').value,s=+$('d4').value,se=+$('d5').value,dc=n('d6'),pr=$('d7').checked?1.18:1;
+ const v=[];for(let i=0;i<H;i++)v.push(Math.round(base*DOW[(s+i)%7]*se*pr*(1+dc/100*1.6)*(1+.003*i)));
+ const tot=v.reduce((a,b)=>a+b,0),avg=Math.round(tot/H),re=Math.max(0,Math.ceil(tot*1.1-stock));
+ let c=0,so=null;v.forEach((x,i)=>{c+=x;if(so===null&&c>stock)so=i+1});
+ const mx=Math.max(...v),w=Math.min(26,Math.floor(300/H)),bars=v.map((x,i)=>{const h=x/mx*90;return `<rect x="${10+i*(w+2)}" y="${105-h}" width="${w}" height="${h}" rx="3" fill="url(#gg)"/>`+(H<=14?`<text x="${10+i*(w+2)+w/2}" y="118" text-anchor="middle">${DN[(s+i)%7][0]}</text>`:'')}).join('');
+ fc=avg;$('e3').value=avg;
+ $('o1').innerHTML=`<div class="res t1">${tot} units</div><div style="color:var(--mut)">over ${H} days · avg ${avg}/day</div><svg viewBox="0 0 330 125" width="100%"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#db2777"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>${bars}</svg><b>Recommended reorder: ${re} units</b><br><small style="color:var(--mut)">${so?`Stock runs out around day ${so}. `:'Current stock covers the whole horizon. '}Average forecast was sent to Module 2.</small>`;
+ $('x1').innerHTML=re>0?`Order <b class="t1">${re} units</b>${so?` (stock-out ~day ${so})`:''}`:'No reorder needed ✅';
+};
+$('g2').onclick=()=>{
+ const d=n('e1'),q=Math.max(1,n('e2')),r=n('e3'),t=n('e4'),k=+$('e5').value;
+ const eff=Math.max(0,d*(1-k*Math.max(0,t-5)/100)),sold=Math.min(q,r*eff),un=q-sold,ra=un/q,p=1/(1+Math.exp(-10*(ra-.2)));
+ const L=p>=.7?['High','hi']:p>=.35?['Medium','md']:['Low','lo'];
+ const a=L[0]=='High'?(d<=3?'Donate or return now':'Discount heavily and move to front'):L[0]=='Medium'?'Move forward (FEFO) and light discount':'Keep selling as normal';
+ const col=L[1]=='hi'?'#dc2626':L[1]=='md'?'#d97706':'#16a34a';
+ $('o2').innerHTML=`<span class="badge ${L[1]}">${L[0]} risk</span><div class="res" style="margin-top:8px">${Math.round(p*100)}% <small style="font-size:.9rem;color:var(--mut)">chance of expiring unsold</small></div><div class="bar"><i style="width:${Math.round(p*100)}%;background:${col}"></i></div>Expected waste: <b>${Math.round(un)} units</b> · Sell-through: ${Math.round(sold/q*100)}%<br>Effective shelf days: ${eff.toFixed(1)}<br><b>Action: ${a}</b>`;
+ $('x2').innerHTML=`<span class="badge ${L[1]}">${L[0]}</span> ${a}`;
+};
+$('g3').onclick=()=>{
+ const S=Math.max(1,n('l1')),P=n('l2'),D=n('l3'),m=n('l4'),sd=Math.max(.1,n('l5'));
+ const gap=S-P,un=gap-D,lp=un/S*100,z=(lp-m)/sd;
+ const L=z>2?['Suspicious','hi']:z>1?['Watch','md']:['Normal','lo'];
+ const cause=un<0?'Overcount or billing error (physical stock is higher than system)':lp>8?'Probable theft or major process failure':lp>3?'Likely miscount, billing error or unlogged damage':'Within normal shrinkage';
+ const pos=Math.max(0,Math.min(100,(z+2)/7*100));
+ $('o3').innerHTML=`<span class="badge ${L[1]}">${L[0]}</span><div class="res" style="margin-top:8px">${lp.toFixed(1)}% <small style="font-size:.9rem;color:var(--mut)">unexplained loss</small></div>Gap ${gap} units − damaged ${D} = <b>${un} unexplained</b><br>Z-score: <b>${z.toFixed(2)}</b> (flag above 2)<div class="bar" style="background:linear-gradient(90deg,#16a34a,#d97706,#dc2626);position:relative"><i style="position:absolute;left:${pos}%;width:6px;background:#fff;border:2px solid #333"></i></div><b>Probable cause:</b> ${cause}`;
+ $('x3').innerHTML=`<span class="badge ${L[1]}">${L[0]}</span> ${L[0]=='Normal'?'No action':'Investigate – '+lp.toFixed(1)+'% loss'}`;
+};
+</script></body></html>
